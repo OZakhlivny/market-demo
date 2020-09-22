@@ -12,12 +12,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/products")
 public class ProductController {
     private ProductService productService;
+    private int min, max;
     private int currentPage;
     public static final int ITEMS_ON_PAGE = 5;
 
+
     public ProductController(ProductService productService) {
         this.productService = productService;
-        currentPage = 0;
+        currentPage = min = max = 0;
     }
 
     @GetMapping
@@ -27,22 +29,24 @@ public class ProductController {
     }
 
     @GetMapping("/filter_products")
-    public String filterProduct(@RequestParam Integer min, @RequestParam Integer max, Model model) {
-        Page<Product> productList = productService.findAll(currentPage, ProductController.ITEMS_ON_PAGE);
+    public String filterProduct(@RequestParam Integer input_min, @RequestParam Integer input_max, Model model) {
+        min = input_min != null ? input_min : 0;
+        max = input_max != null ? input_max : 0;
         currentPage = 0;
-        if ((min != null) && (max != null)) {
-            if (min == 0) {
-                if (max > 0)
-                    productList = productService.findAllByPriceLessThanEqual(max, currentPage, ProductController.ITEMS_ON_PAGE);
-            } else
+        return doFilter(model);
+    }
+
+    public String doFilter(Model model){
+        Page<Product> productList = productService.findAll(currentPage, ProductController.ITEMS_ON_PAGE);
+
+        if (min > 0) {
+            if (max > 0)
                 productList = productService.findAllByPriceGreaterThanEqualAndPriceLessThanEqual(min, max, currentPage, ProductController.ITEMS_ON_PAGE);
-            if ((max == 0) && (min > 0))
+            else
                 productList = productService.findAllByPriceGreaterThanEqual(min, currentPage, ProductController.ITEMS_ON_PAGE);
         } else {
-            if ((min == null) && (max != null)) if (max > 0)
+            if (max > 0)
                 productList = productService.findAllByPriceLessThanEqual(max, currentPage, ProductController.ITEMS_ON_PAGE);
-            if ((max == null) && (min != null)) if (min > 0)
-                productList = productService.findAllByPriceGreaterThanEqual(min, currentPage, ProductController.ITEMS_ON_PAGE);
         }
 
         model.addAttribute("products", productList);
@@ -50,8 +54,8 @@ public class ProductController {
     }
 
    @GetMapping("/goto_page")
-    public String goToPage(@RequestParam Integer page) {
+    public String goToPage(@RequestParam Integer page, Model model) {
         if(page != null) currentPage = page > 1 ? page - 1 : 0;
-        return "redirect:/products";
+       return doFilter(model);
     }
 }
